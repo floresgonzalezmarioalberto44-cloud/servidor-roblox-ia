@@ -10,19 +10,16 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Actualizamos al modelo vigente y compatible de la API
-model = genai.GenerativeModel('gemini-2.5-flash')
+# Usamos el modelo correcto y compatible con la API actual
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 PROMPT_SISTEMA = """
-Eres un motor de arquitectura y diseño para Roblox Studio. Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con múltiples piezas ("objetos").
-Si piden un árbol, diseña un cilindro marrón (Wood) para el tronco y una esfera verde (Grass) para la copa. 
-Si piden un auto, incluye un "VehicleSeat" y varias piezas móviles.
-
-No uses bloques markdown (```json), no uses comillas invertidas ni texto fuera del JSON.
+Eres un motor de arquitectura para Roblox Studio. Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown (```json).
+Diseña una construcción con múltiples piezas ("objetos"). Si piden un auto, incluye un "VehicleSeat" y varias piezas. Si piden un árbol, incluye tronco y copa.
 
 Estructura obligatoria exacta:
 {
-  "reasoning": "Descripción de la construcción",
+  "reasoning": "Construcción detallada",
   "objetos": [
     {
       "shape": "Cylinder",
@@ -50,17 +47,16 @@ Estructura obligatoria exacta:
 
 @app.route('/')
 def home():
-    return "Servidor activo y conectado correctamente."
+    return "Servidor activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
     try:
         data = request.get_json()
-        prompt_usuario = data.get('prompt', 'crear bloque') if data else 'crear bloque'
+        prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
 
-        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición del usuario: {prompt_usuario}")
+        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         texto = response.text.strip()
-        print("TEXTO RECIBIDO DE GEMINI:", texto)
 
         if texto.startswith("```"):
             texto = texto.split("```")[1]
@@ -76,13 +72,13 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("La respuesta de la IA no contiene un JSON válido.")
+            raise ValueError("No se encontró JSON válido.")
 
     except Exception as e:
-        print("--- ERROR INTERNO EN RENDER ---")
+        print("--- ERROR EN RENDER ---")
         traceback.print_exc()
         return jsonify({
-            "reasoning": "Error interno capturado: " + str(e),
+            "reasoning": "Respaldo por error de API.",
             "objetos": [
                 {
                   "shape": "Cylinder",
@@ -105,7 +101,7 @@ def construir():
                   "can_collide": True
                 }
             ]
-        }), 500
+        }), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
