@@ -10,36 +10,36 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Usamos la configuración estándar actual del cliente de Google Generative AI
-generation_config = {
-  "temperature": 0.7,
-  "top_p": 0.95,
-  "top_k": 40,
-  "max_output_tokens": 8192,
-}
-
-# Usamos el nombre directo del modelo sin rutas conflictivas
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    generation_config=generation_config
-)
+# Usamos estrictamente el nombre con el prefijo models/ que requiere esta versión de la API
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un motor estricto de JSON para Roblox Studio. Analiza la petición del usuario y diseña una construcción dinámica compuesta por múltiples piezas ("objetos").
-Si piden un vehículo, incluye un "VehicleSeat" y partes móviles. Si piden un árbol, incluye un cilindro marrón y una esfera verde. 
+Eres un motor de arquitectura y diseño para Roblox Studio. Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con múltiples piezas ("objetos").
+Si piden un árbol, diseña un cilindro marrón (Wood) para el tronco y una esfera o bloque verde (Grass / SmoothPlastic) para la copa. 
+Si piden un auto, incluye un "VehicleSeat" y varias piezas móviles.
 
-Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json), no uses comillas invertidas ni texto fuera del JSON.
+No uses bloques markdown (```json), no uses comillas invertidas ni texto fuera del JSON.
 
 Estructura obligatoria exacta:
 {
   "reasoning": "Descripción de la construcción",
   "objetos": [
     {
-      "shape": "Block",
-      "size": {"X": 4, "Y": 2, "Z": 4},
-      "offset": {"X": 0, "Y": 0, "Z": 0},
-      "color": {"R": 0.5, "G": 0.5, "B": 0.5},
-      "material": "SmoothPlastic",
+      "shape": "Cylinder",
+      "size": {"X": 2, "Y": 6, "Z": 2},
+      "offset": {"X": 0, "Y": 3, "Z": 0},
+      "color": {"R": 0.4, "G": 0.2, "B": 0.1},
+      "material": "Wood",
+      "anchored": true,
+      "transparency": 0,
+      "can_collide": true
+    },
+    {
+      "shape": "Ball",
+      "size": {"X": 5, "Y": 5, "Z": 5},
+      "offset": {"X": 0, "Y": 7, "Z": 0},
+      "color": {"R": 0.1, "G": 0.7, "B": 0.2},
+      "material": "Grass",
       "anchored": true,
       "transparency": 0,
       "can_collide": true
@@ -50,7 +50,7 @@ Estructura obligatoria exacta:
 
 @app.route('/')
 def home():
-    return "Servidor activo y actualizado."
+    return "Servidor activo y listo para construir."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -79,17 +79,27 @@ def construir():
             raise ValueError("La respuesta de la IA no contiene un JSON válido.")
 
     except Exception as e:
-        print("--- ERROR DIRECTO EN RENDER ---")
+        print("--- ERROR INTERNO EN RENDER ---")
         traceback.print_exc()
         return jsonify({
-            "reasoning": "Error interno del servidor: " + str(e),
+            "reasoning": "Error interno capturado: " + str(e),
             "objetos": [
                 {
-                  "shape": "Block",
-                  "size": {"X": 4, "Y": 4, "Z": 4},
-                  "offset": {"X": 0, "Y": 2, "Z": 0},
-                  "color": {"R": 1, "G": 0, "B": 0},
-                  "material": "SmoothPlastic",
+                  "shape": "Cylinder",
+                  "size": {"X": 2, "Y": 6, "Z": 2},
+                  "offset": {"X": 0, "Y": 3, "Z": 0},
+                  "color": {"R": 0.4, "G": 0.2, "B": 0.1},
+                  "material": "Wood",
+                  "anchored": True,
+                  "transparency": 0,
+                  "can_collide": True
+                },
+                {
+                  "shape": "Ball",
+                  "size": {"X": 5, "Y": 5, "Z": 5},
+                  "offset": {"X": 0, "Y": 7, "Z": 0},
+                  "color": {"R": 0.1, "G": 0.7, "B": 0.2},
+                  "material": "Grass",
                   "anchored": True,
                   "transparency": 0,
                   "can_collide": True
