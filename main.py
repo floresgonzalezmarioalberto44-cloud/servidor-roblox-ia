@@ -10,12 +10,12 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Usamos estrictamente el nombre con el prefijo models/ que requiere esta versión de la API
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+# Actualizamos al modelo vigente y compatible de la API
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 PROMPT_SISTEMA = """
 Eres un motor de arquitectura y diseño para Roblox Studio. Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con múltiples piezas ("objetos").
-Si piden un árbol, diseña un cilindro marrón (Wood) para el tronco y una esfera o bloque verde (Grass / SmoothPlastic) para la copa. 
+Si piden un árbol, diseña un cilindro marrón (Wood) para el tronco y una esfera verde (Grass) para la copa. 
 Si piden un auto, incluye un "VehicleSeat" y varias piezas móviles.
 
 No uses bloques markdown (```json), no uses comillas invertidas ni texto fuera del JSON.
@@ -50,7 +50,7 @@ Estructura obligatoria exacta:
 
 @app.route('/')
 def home():
-    return "Servidor activo y listo para construir."
+    return "Servidor activo y conectado correctamente."
 
 @app.route('/construir', methods=['POST'])
 def construir():
