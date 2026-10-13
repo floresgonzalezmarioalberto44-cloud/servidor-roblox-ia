@@ -10,7 +10,19 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Usamos la configuración estándar actual del cliente de Google Generative AI
+generation_config = {
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "top_k": 40,
+  "max_output_tokens": 8192,
+}
+
+# Usamos el nombre directo del modelo sin rutas conflictivas
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash",
+    generation_config=generation_config
+)
 
 PROMPT_SISTEMA = """
 Eres un motor estricto de JSON para Roblox Studio. Analiza la petición del usuario y diseña una construcción dinámica compuesta por múltiples piezas ("objetos").
@@ -38,7 +50,7 @@ Estructura obligatoria exacta:
 
 @app.route('/')
 def home():
-    return "Servidor activo y sin respaldos."
+    return "Servidor activo y actualizado."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -50,7 +62,6 @@ def construir():
         texto = response.text.strip()
         print("TEXTO RECIBIDO DE GEMINI:", texto)
 
-        # Limpieza de markdown si el modelo llega a incluirlo por error
         if texto.startswith("```"):
             texto = texto.split("```")[1]
             if texto.startswith("json"):
@@ -70,10 +81,20 @@ def construir():
     except Exception as e:
         print("--- ERROR DIRECTO EN RENDER ---")
         traceback.print_exc()
-        # Si falla, devolvemos el error exacto en el JSON en lugar de un respaldo oculto
         return jsonify({
             "reasoning": "Error interno del servidor: " + str(e),
-            "objetos": []
+            "objetos": [
+                {
+                  "shape": "Block",
+                  "size": {"X": 4, "Y": 4, "Z": 4},
+                  "offset": {"X": 0, "Y": 2, "Z": 0},
+                  "color": {"R": 1, "G": 0, "B": 0},
+                  "material": "SmoothPlastic",
+                  "anchored": True,
+                  "transparency": 0,
+                  "can_collide": True
+                }
+            ]
         }), 500
 
 if __name__ == '__main__':
