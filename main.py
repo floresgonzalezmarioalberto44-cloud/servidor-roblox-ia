@@ -10,102 +10,61 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
+# Configuramos el modelo de forma limpia
 model = genai.GenerativeModel('models/gemini-1.5-flash')
-
-PROMPT_SISTEMA = """
-Eres un motor JSON para Roblox Studio. Responde ÚNICAMENTE con un objeto JSON válido, sin bloques markdown ni texto adicional. 
-Diseña una construcción lógica compuesta por una lista de objetos ("objetos"). Por ejemplo, si piden un árbol, haz un cilindro marrón para el tronco y una esfera verde para la copa.
-
-Estructura obligatoria exacta:
-{
-  "reasoning": "Explicación de la construcción",
-  "objetos": [
-    {
-      "shape": "Cylinder",
-      "size": {"X": 2, "Y": 6, "Z": 2},
-      "offset": {"X": 0, "Y": 3, "Z": 0},
-      "color": {"R": 0.4, "G": 0.2, "B": 0.1},
-      "material": "Wood",
-      "anchored": true,
-      "transparency": 0,
-      "can_collide": true,
-      "has_light": false,
-      "has_particles": false,
-      "has_sound": false,
-      "sound_id": "rbxassetid://0",
-      "has_script": false,
-      "script_code": ""
-    },
-    {
-      "shape": "Ball",
-      "size": {"X": 6, "Y": 6, "Z": 6},
-      "offset": {"X": 0, "Y": 7, "Z": 0},
-      "color": {"R": 0.1, "G": 0.7, "B": 0.2},
-      "material": "Grass",
-      "anchored": true,
-      "transparency": 0,
-      "can_collide": true,
-      "has_light": false,
-      "has_particles": false,
-      "has_sound": false,
-      "sound_id": "rbxassetid://0",
-      "has_script": false,
-      "script_code": ""
-    }
-  ]
-}
-"""
 
 @app.route('/')
 def home():
-    return "Servidor activo."
+    return "Servidor activo y listo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
-    fallback_json = {
-        "reasoning": "Respaldo seguro de emergencia por defecto.",
-        "objetos": [
-            {
-              "shape": "Block",
-              "size": {"X": 4, "Y": 4, "Z": 4},
-              "offset": {"X": 0, "Y": 2, "Z": 0},
-              "color": {"R": 0.4, "G": 0.2, "B": 0.1},
-              "material": "Wood",
-              "anchored": True,
-              "transparency": 0,
-              "can_collide": True,
-              "has_light": False,
-              "has_particles": False,
-              "has_sound": False,
-              "sound_id": "rbxassetid://0",
-              "has_script": False,
-              "script_code": ""
-            },
-            {
-              "shape": "Ball",
-              "size": {"X": 5, "Y": 5, "Z": 5},
-              "offset": {"X": 0, "Y": 6, "Z": 0},
-              "color": {"R": 0.1, "G": 0.8, "B": 0.2},
-              "material": "Grass",
-              "anchored": True,
-              "transparency": 0,
-              "can_collide": True,
-              "has_light": False,
-              "has_particles": False,
-              "has_sound": False,
-              "sound_id": "rbxassetid://0",
-              "has_script": False,
-              "script_code": ""
-            }
-        ]
-    }
-
     try:
         data = request.get_json()
-        prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
+        prompt_usuario = data.get('prompt', 'crear un objeto') if data else 'crear un objeto'
 
-        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
-        texto = response.text.strip() if response and hasattr(response, 'text') else ""
+        # Prompt ultra directo y estricto
+        prompt_completo = f"""
+        Eres un generador de JSON estricto para Roblox Studio.
+        El usuario pide: "{prompt_usuario}"
+        
+        Devuelve ÚNICAMENTE un objeto JSON válido (sin explicaciones, sin markdown como ```json). 
+        Debe contener una lista llamada "objetos" con las piezas necesarias (máximo 1000).
+        Cada objeto debe tener: shape ("Block", "Ball", "Cylinder", "Wedge"), size ({"X", "Y", "Z"}), offset ({"X", "Y", "Z"}), color ({"R", "G", "B"}), material, anchored (true/false), transparency, can_collide, has_light, has_particles, has_sound, sound_id, has_script, script_code.
+
+        Ejemplo de formato:
+        {{
+          "reasoning": "Explicación breve",
+          "objetos": [
+            {{
+              "shape": "Block",
+              "size": {{"X": 4, "Y": 2, "Z": 6}},
+              "offset": {{"X": 0, "Y": 0, "Z": 0}},
+              "color": {{"R": 1, "G": 0, "B": 0}},
+              "material": "Metal",
+              "anchored": false,
+              "transparency": 0,
+              "can_collide": true,
+              "has_light": false,
+              "has_particles": false,
+              "has_sound": false,
+              "sound_id": "rbxassetid://0",
+              "has_script": false,
+              "script_code": ""
+            }}
+          ]
+        }}
+        """
+
+        response = model.generate_content(prompt_completo)
+        texto = response.text.strip()
+
+        # Limpiar bloques de código markdown si los hubiera
+        if texto.startswith("```"):
+            texto = texto.split("```")[1]
+            if texto.startswith("json"):
+                texto = texto[4:]
+        texto = texto.strip()
 
         inicio = texto.find('{')
         fin = texto.rfind('}')
@@ -113,19 +72,36 @@ def construir():
         if inicio != -1 and fin != -1 and fin > inicio:
             json_str = texto[inicio:fin+1]
             json_respuesta = json.loads(json_str)
-            
-            # Validar que contenga la lista de objetos
-            if "objetos" not in json_respuesta or not isinstance(json_respuesta["objetos"], list):
-                return jsonify(fallback_json), 200
-                
             return jsonify(json_respuesta), 200
         else:
-            return jsonify(fallback_json), 200
+            raise ValueError("No se encontró un JSON válido en la respuesta.")
 
     except Exception as e:
-        print("ERROR EN RENDER:")
+        print("EXCEPCIÓN EN RENDER:")
         traceback.print_exc()
-        return jsonify(fallback_json), 200
+        
+        # Respaldo dinámico si ocurre un error
+        return jsonify({
+            "reasoning": "Respaldo por excepción interna controlada.",
+            "objetos": [
+                {
+                  "shape": "Block",
+                  "size": {"X": 4, "Y": 2, "Z": 6},
+                  "offset": {"X": 0, "Y": 0, "Z": 0},
+                  "color": {"R": 0, "G": 0.5, "B": 1},
+                  "material": "Metal",
+                  "anchored": False,
+                  "transparency": 0,
+                  "can_collide": True,
+                  "has_light": False,
+                  "has_particles": False,
+                  "has_sound": False,
+                  "sound_id": "rbxassetid://0",
+                  "has_script": True,
+                  "script_code": "while true do script.Parent.CFrame = script.Parent.CFrame * CFrame.Angles(0, math.rad(2), 0) task.wait(0.03) end"
+                }
+            ]
+        }), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
