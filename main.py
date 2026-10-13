@@ -10,8 +10,8 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Usamos gemini-pro para evitar el error 404 de modelos
-model = genai.GenerativeModel('gemini-pro')
+# Usamos el nombre exacto compatible con la librería actual
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
 Eres un motor JSON para un NPC de Roblox. Responde ÚNICAMENTE con un JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional. 
