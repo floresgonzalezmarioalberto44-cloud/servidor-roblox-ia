@@ -2,24 +2,24 @@ import os
 import json
 import traceback
 from flask import Flask, request, jsonify
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 app = Flask(__name__)
 
-# Inicializamos el cliente moderno oficial de Google GenAI
 API_KEY = os.environ.get("GOOGLE_API_KEY")
-client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
+if API_KEY:
+    genai.configure(api_key=API_KEY)
+
+# Usamos el modelo estándar compatible con la librería clásica
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un motor de arquitectura y diseño para Roblox Studio. Analiza la petición del usuario y diseña una construcción detallada con múltiples piezas ("objetos").
-Si piden una mesa, diseña una tabla superior plana (Block) y cuatro patas cilíndricas o bloques de soporte. Si piden un auto, incluye un VehicleSeat. Si piden un árbol, incluye tronco y copa.
-
-Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json), no uses comillas invertidas ni texto fuera del JSON.
+Eres un motor de arquitectura para Roblox Studio. Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown (```json).
+Diseña una construcción con múltiples piezas ("objetos") según lo que pida el usuario (una mesa, un auto, un árbol, etc.).
 
 Estructura obligatoria exacta:
 {
-  "reasoning": "Descripción de la construcción",
+  "reasoning": "Construcción detallada",
   "objetos": [
     {
       "shape": "Block",
@@ -37,7 +37,7 @@ Estructura obligatoria exacta:
 
 @app.route('/')
 def home():
-    return "Servidor activo con el SDK oficial."
+    return "Servidor activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -45,14 +45,8 @@ def construir():
         data = request.get_json()
         prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
 
-        # Usamos el cliente moderno con gemini-2.0-flash
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=f"{PROMPT_SISTEMA}\n\nPetición del usuario: {prompt_usuario}"
-        )
-        
+        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         texto = response.text.strip()
-        print("TEXTO RECIBIDO DE LA IA:", texto)
 
         if texto.startswith("```"):
             texto = texto.split("```")[1]
@@ -68,10 +62,10 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontró un JSON válido en la respuesta.")
+            raise ValueError("No se encontró JSON válido.")
 
     except Exception as e:
-        print("--- ERROR CRÍTICO EN RENDER ---")
+        print("--- ERROR EN RENDER ---")
         traceback.print_exc()
         return jsonify({
             "reasoning": "Error interno: " + str(e),
