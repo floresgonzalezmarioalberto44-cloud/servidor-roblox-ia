@@ -10,7 +10,8 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Usamos gemini-pro para evitar el error 404 de modelos
+model = genai.GenerativeModel('gemini-pro')
 
 PROMPT_SISTEMA = """
 Eres un motor JSON para un NPC de Roblox. Responde ÚNICAMENTE con un JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional. 
@@ -59,7 +60,6 @@ def construir():
         return jsonify(json_respuesta), 200
 
     except Exception as e:
-        # Esto imprimirá el error completo en los logs de Render
         print("ERROR INTERNO DETALLADO:")
         traceback.print_exc()
         return jsonify({"error_interno": str(e)}), 500
