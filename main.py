@@ -10,51 +10,54 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
+# Usamos gemini-1.5-flash con configuración de temperatura para fomentar la creatividad lógica
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
-# Prompt actualizado para que la IA diseñe formas y escriba código de Roblox (Lua) dinámico
 PROMPT_SISTEMA = """
-Eres un motor experto de IA y scripting para Roblox Studio. 
-Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con la estructura exacta indicada abajo. No agregues texto adicional, explicaciones ni bloques markdown.
+Eres el motor de IA experto en lógica, diseño y scripting de Roblox Studio. 
+Analiza detalladamente la petición del usuario. Piensa qué tipo de objeto quiere, qué color tendría, qué forma se adapta mejor (Block, Ball, Cylinder, Wedge), si necesita iluminación, un script simple en Luau (como rotar, parpadear o reaccionar) y si requiere un ID de sonido de Roblox (SoundId).
 
-Reglas para los scripts:
-- Si el usuario pide algo interactivo (ej. que se mueva, cambie de color solo, emita luz especial o reaccione), pon "has_script": true y escribe código Luau válido y seguro dentro de "script_code" (usa script.Parent).
-- Si es solo una estructura estática, deja "has_script": false y "script_code": "".
+DEBES responder ÚNICAMENTE con un objeto JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional fuera del JSON.
 
-Estructura exacta obligatoria:
+Estructura JSON exacta obligatoria:
 {
-  "reasoning": "Breve explicación de la lógica aplicada",
+  "reasoning": "Explicación detallada de por qué elegiste esta forma, color, script o sonido basado en la petición del usuario",
   "action": "create",
   "shape": "Block",
   "size": {"X": 4, "Y": 2, "Z": 4},
   "position": {"X": 0, "Y": 0, "Z": 0},
-  "color": {"R": 0.2, "G": 0.6, "B": 1},
+  "color": {"R": 0.1, "G": 0.8, "B": 0.3},
   "material": "SmoothPlastic",
   "has_light": false,
   "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
   "has_script": false,
-  "script_code": ""
+  "script_code": "",
+  "has_sound": false,
+  "sound_id": "rbxassetid://0"
 }
 """
 
 @app.route('/')
 def home():
-    return "Servidor activo."
+    return "Servidor activo y analizando."
 
 @app.route('/construir', methods=['POST'])
 def construir():
+    # Respaldo dinámico neutral por si ocurre un fallo crítico de red con la API
     fallback_json = {
-        "reasoning": "Pieza de respaldo por defecto.",
+        "reasoning": "Respaldo analítico por fallo temporal de la IA.",
         "action": "create",
         "shape": "Block",
-        "size": {"X": 4, "Y": 2, "Z": 4},
+        "size": {"X": 4, "Y": 4, "Z": 4},
         "position": {"X": 0, "Y": 0, "Z": 0},
-        "color": {"R": 1, "G": 0, "B": 0},
+        "color": {"R": 0.5, "G": 0.5, "B": 0.5},
         "material": "SmoothPlastic",
         "has_light": False,
         "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
         "has_script": False,
-        "script_code": ""
+        "script_code": "",
+        "has_sound": False,
+        "sound_id": "rbxassetid://0"
     }
 
     try:
@@ -64,12 +67,15 @@ def construir():
 
         prompt_usuario = data['prompt']
         
-        try:
-            response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición del usuario: {prompt_usuario}")
-            texto = response.text.strip() if response and hasattr(response, 'text') else ""
-        except Exception:
-            texto = ""
+        # Llamada a Gemini pidiendo que analice la orden con el system prompt estricto
+        response = model.generate_content(
+            f"{PROMPT_SISTEMA}\n\nPetición exacta del usuario: {prompt_usuario}",
+            generation_config={"temperature": 0.7}
+        )
+        
+        texto = response.text.strip() if response and hasattr(response, 'text') else ""
 
+        # Extracción segura del JSON delimitado por llaves
         inicio = texto.find('{')
         fin = texto.rfind('}')
         
