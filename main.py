@@ -1,83 +1,79 @@
 import os
-from flask import Flask, jsonify, request
-import google.generativeai as genai
 import json
+from flask import Flask, request, jsonify
+import google.generativeai as genai
 
 app = Flask(__name__)
 
-# Configuramos la API Key de Google de forma segura desde las variables de Render
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
+# Configuración de la API Key
+API_KEY = os.environ.get("GOOGLE_API_KEY")
+if API_KEY:
+    genai.configure(api_key=API_KEY)
 
-# Usamos Gemini 1.5 Flash para máxima velocidad y precisión
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-@app.route("/", methods=["GET"])
+PROMPT_SISTEMA = """
+Eres la mente inteligente de un NPC constructor en Roblox. Tu objetivo es analizar de forma lógica cualquier petición del usuario y decidir ingeniosamente qué construir y qué scripts o efectos necesita.
+
+INSTRUCCIONES DE RAZONAMIENTO LOGICO:
+1. Analiza el objeto pedido: ¿Qué forma física tiene? ¿De qué material y color debería ser por naturaleza?
+2. Razona sobre la funcionalidad: 
+   - Si el usuario pide algo interactivo (ej. un carro, una puerta, un árbol mágico, un botón), PIENSA qué script necesita para funcionar (ej. controles de conducción, crecer, abrir/cerrar, emitir luz).
+   - Si el objeto no necesita funcionalidad por defecto pero el usuario la pide implícitamente o explícitamente, invéntale un script lógico.
+   - Si es algo meramente decorativo, decide no ponerle script.
+3. Genera un código Lua de Roblox simple pero totalmente funcional en la propiedad "script_code" cuando aplique.
+
+RESPONDE ÚNICAMENTE EN FORMATO JSON ESTRICTO (sin ```json ni texto adicional) con esta estructura:
+
+{
+  "reasoning": "Breve explicación de por qué elegiste esta forma, color, material y si requiere script o no.",
+  "action": "create",
+  "shape": "Block" | "Ball" | "Cylinder" | "Wedge",
+  "size": {"X": número, "Y": número, "Z": número},
+  "position": {"X": 0, "Y": 5, "Z": -10},
+  "color": {"R": número (0-1), "G": número (0-1), "B": número (0-1)},
+  "material": "SmoothPlastic" | "Wood" | "Neon" | "Metal" | "Grass" | "Glass" | "Brick",
+  "has_light": true | false,
+  "light_details": {"type": "PointLight", "brightness": 3, "color": {"R": 1, "G": 1, "B": 1}},
+  "has_script": true | false,
+  "script_code": "-- Código Lua funcional para Roblox aquí si has_script es true"
+}
+"""
+
+@app.route('/')
 def home():
-    return "¡El servidor con Gemini 1.5 Flash está activo y listo para construir! 🚀", 200
+    return "Servidor IA del NPC Constructor activo."
 
-@app.route("/process-action", methods=["POST"])
-def process_action():
+@app.route('/construir', methods=['POST'])
+def construir():
     try:
-        data = request.json
-        npc_prompt = data.get("prompt", "")
-        
-        print(f"Procesando orden con Gemini: {npc_prompt}")
-        
-        # Instrucción maestra para que Gemini actúe como motor lógico y arquitecto de Roblox
-        prompt_sistema = f"""
-        Eres el motor de IA de un sistema de construcción por NPCs en Roblox. 
-        El usuario ha pedido el siguiente objeto o estructura: "{npc_prompt}".
-        
-        Analiza inteligentemente:
-        1. ¿Qué piezas (bloques, cilindros, esferas, cuñas) componen esta estructura paso a paso con sus tamaños, colores (RGB de 0 a 1), posiciones relativas (X, Y, Z) y rotaciones?
-        2. ¿Este objeto requiere interactividad o físicas especiales (ej. una pelota que se patea, un vehículo que se conduce, un trampolín que impulsa)? Si es puramente estático (como un muro, una casa o un árbol), "requires_script" debe ser falso.
-        3. Si requiere script, redacta un código en Lua robusto para Roblox, incluyendo lógica de proximidad (ej. los botones en pantalla solo funcionan si el jugador está cerca) y soporte universal para PC, Móvil y Consola.
+        data = request.get_json()
+        if not data or 'prompt' not in data:
+            return jsonify({"error": "No se recibió ninguna orden"}), 400
 
-        DEBES responder EXCLUSIVAMENTE con un objeto JSON válido, sin textos extra ni formato markdown adicional, siguiendo esta estructura exacta:
-        {{
-            "action": "build_complex_sequence",
-            "description": "{npc_prompt}",
-            "parts": [
-                {{
-                    "shape": "Part",
-                    "size": {{"X": 4, "Y": 1, "Z": 4}},
-                    "color": {{"R": 0.5, "G": 0.5, "B": 0.5}},
-                    "position": {{"X": 0, "Y": 0.5, "Z": 0}},
-                    "rotation": {{"X": 0, "Y": 0, "Z": 0}}
-                }}
-            ],
-            "requires_script": false,
-            "script_code": ""
-        }}
-        """
+        prompt_usuario = data['prompt']
         
-        # Llamamos a Gemini para que piense y genere la respuesta estructurada
-        response = model.generate_content(prompt_sistema)
-        texto_respuesta = response.text.strip()
+        # Le pedimos a Gemini que razone sobre la orden
+        prompt_completo = f"{PROMPT_SISTEMA}\n\nOrden a analizar: '{prompt_usuario}'"
+        response = model.generate_content(prompt_completo)
         
-        # Limpiamos posibles etiquetas de bloque de código que ponga la IA por error
-        if texto_respuesta.startswith("```json"):
-            texto_respuesta = texto_respuesta[7:]
-        if texto_respuesta.endswith("```"):
-            texto_respuesta = texto_respuesta[:-3]
-            
-        json_resultado = json.loads(texto_respuesta.strip())
-        return jsonify(json_resultado), 200
+        # Limpieza de markdown para recibir JSON puro
+        texto = response.text.strip()
+        if texto.startswith("```json"):
+            texto = texto[7:]
+        if texto.startswith("```"):
+            texto = texto[3:]
+        if texto.endswith("```"):
+            texto = texto[:-3]
+        texto = texto.strip()
+
+        # Validar el JSON procesado por la IA
+        json_respuesta = json.loads(texto)
+        return jsonify(json_respuesta), 200
 
     except Exception as e:
-        # En caso de cualquier detalle, devolvemos un respaldo seguro para que el juego no falle
-        fallback = {
-            "action": "build_complex_sequence",
-            "description": data.get("prompt", "Objeto"),
-            "parts": [
-                {"shape": "Part", "size": {"X": 4, "Y": 4, "Z": 4}, "color": {"R": 0.2, "G": 0.6, "B": 1}, "position": {"X": 0, "Y": 2, "Z": 0}}
-            ],
-            "requires_script": False,
-            "script_code": ""
-        }
-        return jsonify(fallback), 200
+        return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
