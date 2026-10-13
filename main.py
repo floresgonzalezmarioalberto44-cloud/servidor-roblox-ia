@@ -11,7 +11,7 @@ client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
 
 @app.route('/')
 def home():
-    return "Servidor activo y listo."
+    return "Servidor activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -21,7 +21,6 @@ def construir():
 
         print(f"--- ORDEN PURA DEL USUARIO: {prompt_usuario} ---")
 
-        # Prompt estrictamente adaptado al texto exacto del usuario
         prompt_estricto = (
             "Actúa como un motor experto de arquitectura y diseño 3D para Roblox Studio.\n"
             "El usuario ha escrito la siguiente orden exacta: \"" + prompt_usuario + "\"\n\n"
