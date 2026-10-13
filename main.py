@@ -12,21 +12,28 @@ if API_KEY:
 
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
+# Prompt actualizado para que la IA diseñe formas y escriba código de Roblox (Lua) dinámico
 PROMPT_SISTEMA = """
-Eres un motor JSON estricto para un NPC de Roblox. 
-Devuelve ÚNICAMENTE un objeto JSON válido con la estructura exacta indicada abajo. No agregues texto adicional, explicaciones ni bloques markdown.
+Eres un motor experto de IA y scripting para Roblox Studio. 
+Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con la estructura exacta indicada abajo. No agregues texto adicional, explicaciones ni bloques markdown.
+
+Reglas para los scripts:
+- Si el usuario pide algo interactivo (ej. que se mueva, cambie de color solo, emita luz especial o reaccione), pon "has_script": true y escribe código Luau válido y seguro dentro de "script_code" (usa script.Parent).
+- Si es solo una estructura estática, deja "has_script": false y "script_code": "".
 
 Estructura exacta obligatoria:
 {
-  "reasoning": "Breve explicación de la forma",
+  "reasoning": "Breve explicación de la lógica aplicada",
   "action": "create",
   "shape": "Block",
-  "size": {"X": 6, "Y": 2, "Z": 3},
+  "size": {"X": 4, "Y": 2, "Z": 4},
   "position": {"X": 0, "Y": 0, "Z": 0},
-  "color": {"R": 0, "G": 0.4, "B": 1},
+  "color": {"R": 0.2, "G": 0.6, "B": 1},
   "material": "SmoothPlastic",
   "has_light": false,
-  "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
+  "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
+  "has_script": false,
+  "script_code": ""
 }
 """
 
@@ -36,7 +43,6 @@ def home():
 
 @app.route('/construir', methods=['POST'])
 def construir():
-    # Usamos False con mayúscula en Python
     fallback_json = {
         "reasoning": "Pieza de respaldo por defecto.",
         "action": "create",
@@ -46,7 +52,9 @@ def construir():
         "color": {"R": 1, "G": 0, "B": 0},
         "material": "SmoothPlastic",
         "has_light": False,
-        "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
+        "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
+        "has_script": False,
+        "script_code": ""
     }
 
     try:
@@ -57,7 +65,7 @@ def construir():
         prompt_usuario = data['prompt']
         
         try:
-            response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
+            response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición del usuario: {prompt_usuario}")
             texto = response.text.strip() if response and hasattr(response, 'text') else ""
         except Exception:
             texto = ""
