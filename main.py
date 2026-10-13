@@ -12,37 +12,9 @@ if API_KEY:
 
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-PROMPT_SISTEMA = """
-Eres un motor experto en diseño y arquitectura 3D para Roblox Studio. 
-Analiza la petición del usuario y genera un diseño detallado compuesto por múltiples piezas ("objetos").
-- Si piden una mesa: crea una tabla superior horizontal grande y 4 patas cilíndricas o bloques de soporte en las esquinas.
-- Si piden un árbol: crea un tronco cilíndrico marrón y una copa esférica verde o múltiples esferas de follaje.
-- Si piden un carro/auto: crea un asiento de tipo "VehicleSeat" en el centro, una base de chasis y 4 ruedas cilíndricas.
-- Si piden cualquier otra cosa: diseña las piezas estructurales necesarias de forma creativa y coherente.
-
-Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json ... ```), no uses comillas invertidas ni texto introductorio fuera del JSON.
-
-Estructura obligatoria exacta:
-{
-  "reasoning": "Breve explicación de la construcción generada",
-  "objetos": [
-    {
-      "shape": "Block",
-      "size": {"X": 4, "Y": 1, "Z": 4},
-      "offset": {"X": 0, "Y": 1, "Z": 0},
-      "color": {"R": 0.5, "G": 0.3, "B": 0.1},
-      "material": "Wood",
-      "anchored": true,
-      "transparency": 0,
-      "can_collide": true
-    }
-  ]
-}
-"""
-
 @app.route('/')
 def home():
-    return "Servidor activo y listo para diseñar."
+    return "Servidor activo y sin respaldos."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -50,13 +22,40 @@ def construir():
         data = request.get_json()
         prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
 
-        print(f"Generando diseño personalizado para: {prompt_usuario}")
-        
-        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición exacta del usuario: {prompt_usuario}")
+        print(f"Petición directa del usuario: {prompt_usuario}")
+
+        # Prompt estricto que utiliza DIRECTAMENTE el texto que mandaste desde Roblox
+        prompt_sistema = f"""
+Eres un motor estricto de arquitectura 3D para Roblox Studio. 
+El usuario ha pedido exactamente lo siguiente: "{prompt_usuario}".
+
+Diseña una construcción detallada compuesta por múltiples piezas ("objetos") que represente fielmente esa petición (por ejemplo, si pide una mesa, haz la tabla y cuatro patas; si pide un árbol, haz tronco y copa; si pide un carro, haz chasis, ruedas y asiento).
+
+Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json), no uses comillas invertidas ni texto fuera del JSON.
+
+Estructura obligatoria exacta:
+{{
+  "reasoning": "Descripción de la construcción",
+  "objetos": [
+    {{
+      "shape": "Block",
+      "size": {{"X": 4, "Y": 1, "Z": 4}},
+      "offset": {{"X": 0, "Y": 1, "Z": 0}},
+      "color": {{"R": 0.5, "G": 0.3, "B": 0.1}},
+      "material": "Wood",
+      "anchored": true,
+      "transparency": 0,
+      "can_collide": true
+    }}
+  ]
+}}
+"""
+
+        response = model.generate_content(prompt_sistema)
         texto = response.text.strip()
         print("TEXTO CRUDO DE GEMINI:", texto)
 
-        # Limpieza profunda de formato markdown por si la IA insiste en incluirlo
+        # Limpieza de markdown si el modelo lo llega a incluir
         if "```" in texto:
             partes = texto.split("```")
             for parte in partes:
@@ -75,28 +74,16 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("La respuesta de la IA no contiene una estructura JSON reconocible.")
+            raise ValueError("La respuesta de la IA no contiene un JSON válido.")
 
     except Exception as e:
-        print("--- ERROR AL PROCESAR CON LA IA ---")
+        print("--- ERROR REAL EN EL SERVIDOR ---")
         traceback.print_exc()
-        
-        # En caso de fallo crítico en el parseo, devolvemos un JSON de emergencia dinámico que avise en el reasoning
+        # Sin respaldos ocultos: si falla, devolvemos el error exacto para verlo en Roblox
         return jsonify({
-            "reasoning": "Error de parseo: " + str(e),
-            "objetos": [
-                {
-                  "shape": "Block",
-                  "size": {"X": 4, "Y": 2, "Z": 4},
-                  "offset": {"X": 0, "Y": 1, "Z": 0},
-                  "color": {"R": 1, "G": 0, "B": 0},
-                  "material": "SmoothPlastic",
-                  "anchored": True,
-                  "transparency": 0,
-                  "can_collide": True
-                }
-            ]
-        }), 200
+            "reasoning": "Error: " + str(e),
+            "objetos": []
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
