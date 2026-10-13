@@ -13,20 +13,26 @@ if API_KEY:
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un motor de arquitectura para Roblox Studio. Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown (```json).
-Diseña construcciones detalladas con múltiples piezas ("objetos"). Si piden un carro o auto, incluye un "VehicleSeat" en el centro, bloques para la carrocería y cilindros para las ruedas.
+Eres un motor experto en diseño y arquitectura 3D para Roblox Studio. 
+Analiza la petición del usuario y genera un diseño detallado compuesto por múltiples piezas ("objetos").
+- Si piden una mesa: crea una tabla superior horizontal grande y 4 patas cilíndricas o bloques de soporte en las esquinas.
+- Si piden un árbol: crea un tronco cilíndrico marrón y una copa esférica verde o múltiples esferas de follaje.
+- Si piden un carro/auto: crea un asiento de tipo "VehicleSeat" en el centro, una base de chasis y 4 ruedas cilíndricas.
+- Si piden cualquier otra cosa: diseña las piezas estructurales necesarias de forma creativa y coherente.
+
+Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json ... ```), no uses comillas invertidas ni texto introductorio fuera del JSON.
 
 Estructura obligatoria exacta:
 {
-  "reasoning": "Descripción del diseño",
+  "reasoning": "Breve explicación de la construcción generada",
   "objetos": [
     {
-      "shape": "VehicleSeat",
-      "size": {"X": 4, "Y": 1, "Z": 6},
+      "shape": "Block",
+      "size": {"X": 4, "Y": 1, "Z": 4},
       "offset": {"X": 0, "Y": 1, "Z": 0},
-      "color": {"R": 0.8, "G": 0.1, "B": 0.1},
-      "material": "Metal",
-      "anchored": false,
+      "color": {"R": 0.5, "G": 0.3, "B": 0.1},
+      "material": "Wood",
+      "anchored": true,
       "transparency": 0,
       "can_collide": true
     }
@@ -36,7 +42,7 @@ Estructura obligatoria exacta:
 
 @app.route('/')
 def home():
-    return "Servidor activo."
+    return "Servidor activo y listo para diseñar."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -44,14 +50,22 @@ def construir():
         data = request.get_json()
         prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
 
-        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
+        print(f"Generando diseño personalizado para: {prompt_usuario}")
+        
+        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición exacta del usuario: {prompt_usuario}")
         texto = response.text.strip()
+        print("TEXTO CRUDO DE GEMINI:", texto)
 
-        if texto.startswith("```"):
-            texto = texto.split("```")[1]
-            if texto.startswith("json"):
-                texto = texto[4:]
-        texto = texto.strip()
+        # Limpieza profunda de formato markdown por si la IA insiste en incluirlo
+        if "```" in texto:
+            partes = texto.split("```")
+            for parte in partes:
+                parte_limpia = parte.strip()
+                if parte_limpia.startswith("json"):
+                    parte_limpia = parte_limpia[4:].strip()
+                if "{" in parte_limpia and "}" in parte_limpia:
+                    texto = parte_limpia
+                    break
 
         inicio = texto.find('{')
         fin = texto.rfind('}')
@@ -61,72 +75,23 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontró JSON válido.")
+            raise ValueError("La respuesta de la IA no contiene una estructura JSON reconocible.")
 
     except Exception as e:
-        print("--- ERROR RECUPERADO CON DISEÑO MÚLTIPLE ---")
+        print("--- ERROR AL PROCESAR CON LA IA ---")
         traceback.print_exc()
-        # Devolvemos un carro funcional de respaldo con código 200 para que Roblox nunca falle
+        
+        # En caso de fallo crítico en el parseo, devolvemos un JSON de emergencia dinámico que avise en el reasoning
         return jsonify({
-            "reasoning": "Diseño múltiple de respaldo por alta carga.",
+            "reasoning": "Error de parseo: " + str(e),
             "objetos": [
                 {
-                  "shape": "VehicleSeat",
-                  "size": {"X": 4, "Y": 1, "Z": 6},
-                  "offset": {"X": 0, "Y": 1, "Z": 0},
-                  "color": {"R": 0.9, "G": 0.1, "B": 0.1},
-                  "material": "Metal",
-                  "anchored": False,
-                  "transparency": 0,
-                  "can_collide": True
-                },
-                {
                   "shape": "Block",
-                  "size": {"X": 6, "Y": 1, "Z": 10},
-                  "offset": {"X": 0, "Y": 0.5, "Z": 0},
-                  "color": {"R": 0.1, "G": 0.1, "B": 0.8},
-                  "material": "DiamondPlate",
-                  "anchored": False,
-                  "transparency": 0,
-                  "can_collide": True
-                },
-                {
-                  "shape": "Cylinder",
-                  "size": {"X": 1, "Y": 2, "Z": 2},
-                  "offset": {"X": -3.5, "Y": 0, "Z": 3},
-                  "color": {"R": 0.1, "G": 0.1, "B": 0.1},
+                  "size": {"X": 4, "Y": 2, "Z": 4},
+                  "offset": {"X": 0, "Y": 1, "Z": 0},
+                  "color": {"R": 1, "G": 0, "B": 0},
                   "material": "SmoothPlastic",
-                  "anchored": False,
-                  "transparency": 0,
-                  "can_collide": True
-                },
-                {
-                  "shape": "Cylinder",
-                  "size": {"X": 1, "Y": 2, "Z": 2},
-                  "offset": {"X": 3.5, "Y": 0, "Z": 3},
-                  "color": {"R": 0.1, "G": 0.1, "B": 0.1},
-                  "material": "SmoothPlastic",
-                  "anchored": False,
-                  "transparency": 0,
-                  "can_collide": True
-                },
-                {
-                  "shape": "Cylinder",
-                  "size": {"X": 1, "Y": 2, "Z": 2},
-                  "offset": {"X": -3.5, "Y": 0, "Z": -3},
-                  "color": {"R": 0.1, "G": 0.1, "B": 0.1},
-                  "material": "SmoothPlastic",
-                  "anchored": False,
-                  "transparency": 0,
-                  "can_collide": True
-                },
-                {
-                  "shape": "Cylinder",
-                  "size": {"X": 1, "Y": 2, "Z": 2},
-                  "offset": {"X": 3.5, "Y": 0, "Z": -3},
-                  "color": {"R": 0.1, "G": 0.1, "B": 0.1},
-                  "material": "SmoothPlastic",
-                  "anchored": False,
+                  "anchored": True,
                   "transparency": 0,
                   "can_collide": True
                 }
