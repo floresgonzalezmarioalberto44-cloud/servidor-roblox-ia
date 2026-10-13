@@ -13,19 +13,17 @@ if API_KEY:
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un motor de arquitectura para Roblox Studio. Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con múltiples piezas ("objetos").
-Si piden una mesa, diseña la parte superior y cuatro patas. Si piden un árbol, incluye tronco y copa.
-
-Estructura obligatoria exacta:
+Eres un motor de arquitectura para Roblox Studio. Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown.
+Estructura obligatoria:
 {
-  "reasoning": "Descripción del diseño",
+  "reasoning": "Descripción",
   "objetos": [
     {
       "shape": "Block",
-      "size": {"X": 6, "Y": 1, "Z": 4},
-      "offset": {"X": 0, "Y": 4, "Z": 0},
-      "color": {"R": 0.5, "G": 0.3, "B": 0.1},
-      "material": "Wood",
+      "size": {"X": 4, "Y": 2, "Z": 4},
+      "offset": {"X": 0, "Y": 0, "Z": 0},
+      "color": {"R": 0.5, "G": 0.5, "B": 0.5},
+      "material": "SmoothPlastic",
       "anchored": true,
       "transparency": 0,
       "can_collide": true
@@ -46,7 +44,6 @@ def construir():
 
         response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         texto = response.text.strip()
-        print("RESPUESTA CRUDA DE GEMINI:", texto)
 
         if texto.startswith("```"):
             texto = texto.split("```")[1]
@@ -62,14 +59,14 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("La respuesta no contiene un JSON válido.")
+            raise ValueError("No se encontró JSON válido.")
 
     except Exception as e:
-        print("--- ERROR REAL EN RENDER ---")
-        traceback.print_exc()
-        # Si ocurre un error, devolvemos el error exacto como JSON para ver qué pasa en Roblox
+        error_detallado = traceback.format_exc()
+        print("--- ERROR INTERNO ---")
+        print(error_detallado)
         return jsonify({
-            "reasoning": "Error: " + str(e),
+            "reasoning": str(e),
             "objetos": []
         }), 500
 
