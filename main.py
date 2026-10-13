@@ -13,9 +13,7 @@ if API_KEY:
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres la inteligencia artificial de un NPC Constructor en Roblox. Debes responder EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional.
-
-IMPORTANTE: El campo "script_code" debe contener código Lua plano en una sola línea o sin saltos de línea problemáticos para evitar errores de sintaxis JSON. Si no lleva script, déjalo como "".
+Eres la inteligencia artificial y motor lógico de un NPC Constructor en Roblox. Analiza la orden del usuario y responde EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional.
 
 Estructura exacta obligatoria:
 {
@@ -24,7 +22,7 @@ Estructura exacta obligatoria:
   "shape": "Block",
   "size": {"X": 4, "Y": 1, "Z": 4},
   "position": {"X": 0, "Y": 0, "Z": 0},
-  "color": {"R": 0.5, "G": 0.5, "B": 0.5},
+  "color": {"R": 0.2, "G": 0.6, "B": 1},
   "material": "SmoothPlastic",
   "has_light": false,
   "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
@@ -48,8 +46,6 @@ def construir():
         response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         
         texto = response.text.strip()
-        
-        # Limpieza robusta de bloques markdown
         if "```" in texto:
             partes = texto.split("```")
             for p in partes:
@@ -60,16 +56,14 @@ def construir():
                     texto = p_limpio
                     break
 
-        # Limpiar saltos de línea extra dentro del texto si llegan a corromper el JSON
         json_respuesta = json.loads(texto)
         return jsonify(json_respuesta), 200
 
     except Exception as e:
         print("ERROR INTERNO DETALLADO:")
         traceback.print_exc()
-        # Devolvemos un JSON por defecto seguro si la IA falla al generar código complejo
         fallback_json = {
-            "reasoning": "Error al procesar la orden compleja, creando bloque de respaldo.",
+            "reasoning": "Respaldo por error de sintaxis en IA.",
             "action": "create",
             "shape": "Block",
             "size": {"X": 4, "Y": 4, "Z": 4},
@@ -83,6 +77,6 @@ def construir():
         }
         return jsonify(fallback_json), 200
 
-if __name__ == 'main':
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
