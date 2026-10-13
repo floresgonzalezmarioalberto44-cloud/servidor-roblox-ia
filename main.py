@@ -10,16 +10,15 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Usamos el modelo estándar compatible con la librería clásica
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un motor de arquitectura para Roblox Studio. Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown (```json).
-Diseña una construcción con múltiples piezas ("objetos") según lo que pida el usuario (una mesa, un auto, un árbol, etc.).
+Eres un motor de arquitectura para Roblox Studio. Analiza la petición del usuario y devuelve ÚNICAMENTE un objeto JSON válido con múltiples piezas ("objetos").
+Si piden una mesa, diseña la parte superior y cuatro patas. Si piden un árbol, incluye tronco y copa.
 
 Estructura obligatoria exacta:
 {
-  "reasoning": "Construcción detallada",
+  "reasoning": "Descripción del diseño",
   "objetos": [
     {
       "shape": "Block",
@@ -47,6 +46,7 @@ def construir():
 
         response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         texto = response.text.strip()
+        print("RESPUESTA CRUDA DE GEMINI:", texto)
 
         if texto.startswith("```"):
             texto = texto.split("```")[1]
@@ -62,26 +62,16 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontró JSON válido.")
+            raise ValueError("La respuesta no contiene un JSON válido.")
 
     except Exception as e:
-        print("--- ERROR EN RENDER ---")
+        print("--- ERROR REAL EN RENDER ---")
         traceback.print_exc()
+        # Si ocurre un error, devolvemos el error exacto como JSON para ver qué pasa en Roblox
         return jsonify({
-            "reasoning": "Error interno: " + str(e),
-            "objetos": [
-                {
-                  "shape": "Block",
-                  "size": {"X": 6, "Y": 1, "Z": 4},
-                  "offset": {"X": 0, "Y": 4, "Z": 0},
-                  "color": {"R": 0.6, "G": 0.4, "B": 0.2},
-                  "material": "Wood",
-                  "anchored": True,
-                  "transparency": 0,
-                  "can_collide": True
-                }
-            ]
-        }), 200
+            "reasoning": "Error: " + str(e),
+            "objetos": []
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
