@@ -11,7 +11,7 @@ client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
 
 @app.route('/')
 def home():
-    return "Servidor 100% libre de respaldos activo."
+    return "Servidor activo y listo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -19,18 +19,18 @@ def construir():
         data = request.get_json()
         prompt_usuario = data.get('prompt', '') if data else ''
 
-        print(f"--- NUEVA ORDEN DIRECTA DE USUARIO: {prompt_usuario} ---")
+        print(f"--- ORDEN PURA DEL USUARIO: {prompt_usuario} ---")
 
-        # Prompt ultra directo: la IA DEBE usar el texto exacto del usuario y crear múltiples piezas variadas
+        # Prompt estrictamente adaptado al texto exacto del usuario
         prompt_estricto = (
-            "Eres un motor experto de arquitectura y diseño 3D para Roblox Studio.\n"
+            "Actúa como un motor experto de arquitectura y diseño 3D para Roblox Studio.\n"
             "El usuario ha escrito la siguiente orden exacta: \"" + prompt_usuario + "\"\n\n"
-            "Analiza detalladamente qué es lo que pide el usuario y diséñalo completamente desde cero usando MÚLTIPLES piezas (bloques, cilindros, esferas, cuñas, VehicleSeat si es vehículo).\n"
-            "No reutilices diseños anteriores. Adapta las formas, tamaños, colores y posiciones exclusivamente a lo que pide esta orden.\n\n"
+            "Tu única tarea es diseñar este objeto desglosado en MÚLTIPLES piezas (bloques, cilindros, esferas, cuñas, VehicleSeat si es vehículo).\n"
+            "Adapta las formas, tamaños, colores, materiales y posiciones exclusivamente a lo que pide esta orden exacta, sin usar plantillas fijas.\n\n"
             "Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json), no uses comillas invertidas ni texto adicional.\n\n"
             "Estructura obligatoria exacta:\n"
             "{\n"
-            "  \"reasoning\": \"Descripción de cómo diseñaste la petición del usuario\",\n"
+            "  \"reasoning\": \"Descripción de la construcción generada\",\n"
             "  \"objetos\": [\n"
             "    {\n"
             "      \"shape\": \"Block\",\n"
@@ -52,7 +52,7 @@ def construir():
         )
         
         texto = response.text.strip()
-        print("TEXTO RECIBIDO DE GEMINI:", texto)
+        print("TEXTO CRUDO DE GEMINI:", texto)
 
         if "```" in texto:
             partes = texto.split("```")
@@ -75,11 +75,10 @@ def construir():
             raise ValueError("La respuesta de la IA no contiene un JSON válido.")
 
     except Exception as e:
-        print("--- ERROR CRÍTICO EN LA IA ---")
+        print("--- ERROR EN EL SERVIDOR ---")
         traceback.print_exc()
-        # Sin respaldos falsos: si algo falla, devolvemos el error exacto en el JSON
         return jsonify({
-            "reasoning": "Error al procesar con IA: " + str(e),
+            "reasoning": "Error: " + str(e),
             "objetos": []
         }), 500
 
