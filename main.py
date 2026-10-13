@@ -13,21 +13,20 @@ if API_KEY:
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres la inteligencia artificial y motor lógico de un NPC Constructor en Roblox. Analiza la orden del usuario y responde EXCLUSIVAMENTE con un objeto JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional.
+Eres un motor JSON estricto para un NPC de Roblox. 
+Devuelve ÚNICAMENTE un objeto JSON válido. NO uses bloques de código markdown, NO uses comillas invertidas (```), NO escribas explicaciones fuera del JSON.
 
 Estructura exacta obligatoria:
 {
-  "reasoning": "Breve explicación lógica",
+  "reasoning": "Explicación breve",
   "action": "create",
   "shape": "Block",
-  "size": {"X": 4, "Y": 1, "Z": 4},
+  "size": {"X": 4, "Y": 2, "Z": 6},
   "position": {"X": 0, "Y": 0, "Z": 0},
-  "color": {"R": 0.2, "G": 0.6, "B": 1},
+  "color": {"R": 1, "G": 0, "B": 0},
   "material": "SmoothPlastic",
   "has_light": false,
-  "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
-  "has_script": false,
-  "script_code": ""
+  "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
 }
 """
 
@@ -46,15 +45,12 @@ def construir():
         response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         
         texto = response.text.strip()
-        if "```" in texto:
-            partes = texto.split("```")
-            for p in partes:
-                p_limpio = p.strip()
-                if p_limpio.startswith("json"):
-                    p_limpio = p_limpio[4:].strip()
-                if p_limpio.startswith("{") and p_limpio.endswith("}"):
-                    texto = p_limpio
-                    break
+        
+        # Limpieza ultra robusta para extraer solo el contenido entre llaves {}
+        inicio = texto.find('{')
+        fin = texto.rfind('}')
+        if inicio != -1 and fin != -1 and fin > inicio:
+            texto = texto[inicio:fin+1]
 
         json_respuesta = json.loads(texto)
         return jsonify(json_respuesta), 200
@@ -62,18 +58,17 @@ def construir():
     except Exception as e:
         print("ERROR INTERNO DETALLADO:")
         traceback.print_exc()
+        # JSON de respaldo seguro para que Roblox nunca reciba un error 500
         fallback_json = {
-            "reasoning": "Respaldo por error de sintaxis en IA.",
+            "reasoning": "Respaldo automático por fallo de formato en IA.",
             "action": "create",
             "shape": "Block",
-            "size": {"X": 4, "Y": 4, "Z": 4},
+            "size": {"X": 4, "Y": 2, "Z": 6},
             "position": {"X": 0, "Y": 0, "Z": 0},
-            "color": {"R": 1, "G": 0, "B": 0},
+            "color": {"R": 0, "G": 0.5, "B": 1},
             "material": "SmoothPlastic",
             "has_light": false,
-            "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
-            "has_script": false,
-            "script_code": ""
+            "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
         }
         return jsonify(fallback_json), 200
 
