@@ -1,11 +1,11 @@
 import os
 import json
+import traceback
 from flask import Flask, request, jsonify
 import google.generativeai as genai
 
 app = Flask(__name__)
 
-# Configuración de la API Key
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
@@ -13,50 +13,38 @@ if API_KEY:
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres la mente inteligente de un NPC constructor en Roblox. Tu objetivo es analizar de forma lógica cualquier petición del usuario y decidir ingeniosamente qué construir y qué scripts o efectos necesita.
-
-INSTRUCCIONES DE RAZONAMIENTO LOGICO:
-1. Analiza el objeto pedido: ¿Qué forma física tiene? ¿De qué material y color debería ser por naturaleza?
-2. Razona sobre la funcionalidad: 
-   - Si el usuario pide algo interactivo (ej. un carro, una puerta, un árbol mágico, un botón), PIENSA qué script necesita para funcionar (ej. controles de conducción, crecer, abrir/cerrar, emitir luz).
-   - Si el objeto no necesita funcionalidad por defecto pero el usuario la pide implícitamente o explícitamente, invéntale un script lógico.
-   - Si es algo meramente decorativo, decide no ponerle script.
-3. Genera un código Lua de Roblox simple pero totalmente funcional en la propiedad "script_code" cuando aplique.
-
-RESPONDE ÚNICAMENTE EN FORMATO JSON ESTRICTO (sin ```json ni texto adicional) con esta estructura:
-
+Eres un motor JSON para un NPC de Roblox. Responde ÚNICAMENTE con un JSON válido, sin bloques de código markdown, sin comillas invertidas y sin texto adicional. 
+Estructura exacta obligatoria:
 {
-  "reasoning": "Breve explicación de por qué elegiste esta forma, color, material y si requiere script o no.",
+  "reasoning": "Breve explicación",
   "action": "create",
-  "shape": "Block" | "Ball" | "Cylinder" | "Wedge",
-  "size": {"X": número, "Y": número, "Z": número},
-  "position": {"X": 0, "Y": 5, "Z": -10},
-  "color": {"R": número (0-1), "G": número (0-1), "B": número (0-1)},
-  "material": "SmoothPlastic" | "Wood" | "Neon" | "Metal" | "Grass" | "Glass" | "Brick",
-  "has_light": true | false,
-  "light_details": {"type": "PointLight", "brightness": 3, "color": {"R": 1, "G": 1, "B": 1}},
-  "has_script": true | false,
-  "script_code": "-- Código Lua funcional para Roblox aquí si has_script es true"
+  "shape": "Block",
+  "size": {"X": 4, "Y": 4, "Z": 4},
+  "position": {"X": 0, "Y": 0, "Z": 0},
+  "color": {"R": 0, "G": 0, "B": 1},
+  "material": "SmoothPlastic",
+  "has_light": false,
+  "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}},
+  "has_script": false,
+  "script_code": ""
 }
 """
 
 @app.route('/')
 def home():
-    return "Servidor IA del NPC Constructor activo."
+    return "Servidor activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
     try:
         data = request.get_json()
         if not data or 'prompt' not in data:
-            return jsonify({"error": "No se recibió ninguna orden"}), 400
+            return jsonify({"error": "No prompt"}), 400
 
         prompt_usuario = data['prompt']
-        prompt_completo = f"{PROMPT_SISTEMA}\n\nOrden a analizar: '{prompt_usuario}'"
+        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         
-        response = model.generate_content(prompt_completo)
         texto = response.text.strip()
-        
         if "```" in texto:
             partes = texto.split("```")
             for p in partes:
@@ -71,6 +59,9 @@ def construir():
         return jsonify(json_respuesta), 200
 
     except Exception as e:
+        # Esto imprimirá el error completo en los logs de Render
+        print("ERROR INTERNO DETALLADO:")
+        traceback.print_exc()
         return jsonify({"error_interno": str(e)}), 500
 
 if __name__ == '__main__':
