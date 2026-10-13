@@ -14,7 +14,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route('/')
 def home():
-    return "Servidor directo y sin respaldos activo."
+    return "Servidor directo activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -24,41 +24,38 @@ def construir():
 
         print(f"Petición directa del usuario: {prompt_usuario}")
 
-        # Prompt 100% directo y enfocado en lo que pide el usuario con múltiples piezas detalladas
-        prompt_estricto = f"""
-Actúa como un generador experto de estructuras 3D para Roblox Studio.
-El usuario ha escrito exactamente esta solicitud: "{prompt_usuario}"
-
-Tu tarea es diseñar este objeto desglosado en MÚLTIPLES piezas (bloques, cilindros, esferas, cuñas, o VehicleSeat si es un vehículo). 
-Define con precisión milimétrica para cada pieza:
-- shape (Block, Cylinder, Ball, Wedge, VehicleSeat)
-- size (X, Y, Z)
-- offset relativas desde el centro de la construcción (X, Y, Z)
-- color RGB (valores de 0.0 a 1.0)
-- material de Roblox (Wood, Metal, SmoothPlastic, Glass, Neon, etc.)
-- anchored (true/false)
-- transparency (0 a 1)
-- can_collide (true/false)
-
-Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json), no uses comillas invertidas ni texto adicional fuera del JSON.
-
-Estructura obligatoria exacta:
-{{
-  "reasoning": "Descripción detallada de la construcción generada",
-  "objetos": [
-    {{
-      "shape": "Block",
-      "size": {{"X": 4, "Y": 1, "Z": 4}},
-      "offset": {{"X": 0, "Y": 0, "Z": 0}},
-      "color": {{"R": 0.5, "G": 0.3, "B": 0.1}},
-      "material": "Wood",
-      "anchored": true,
-      "transparency": 0,
-      "can_collide": true
-    }}
-  ]
-}
-"""
+        # Prompt armado con concatenación normal para evitar errores de sintaxis con las llaves
+        prompt_estricto = (
+            'Actúa como un generador experto de estructuras 3D para Roblox Studio.\n'
+            'El usuario ha escrito exactamente esta solicitud: "' + prompt_usuario + '"\n\n'
+            'Tu tarea es diseñar este objeto desglosado en MÚLTIPLES piezas (bloques, cilindros, esferas, cuñas, o VehicleSeat si es un vehículo).\n'
+            'Define con precisión milimétrica para cada pieza:\n'
+            '- shape (Block, Cylinder, Ball, Wedge, VehicleSeat)\n'
+            '- size (X, Y, Z)\n'
+            '- offset relativas desde el centro de la construcción (X, Y, Z)\n'
+            '- color RGB (valores de 0.0 a 1.0)\n'
+            '- material de Roblox (Wood, Metal, SmoothPlastic, Glass, Neon, etc.)\n'
+            '- anchored (true/false)\n'
+            '- transparency (0 a 1)\n'
+            '- can_collide (true/false)\n\n'
+            'Devuelve ÚNICAMENTE un objeto JSON válido. No uses bloques markdown (```json), no uses comillas invertidas ni texto adicional fuera del JSON.\n\n'
+            'Estructura obligatoria exacta:\n'
+            '{\n'
+            '  "reasoning": "Descripción detallada de la construcción generada",\n'
+            '  "objetos": [\n'
+            '    {\n'
+            '      "shape": "Block",\n'
+            '      "size": {"X": 4, "Y": 1, "Z": 4},\n'
+            '      "offset": {"X": 0, "Y": 0, "Z": 0},\n'
+            '      "color": {"R": 0.5, "G": 0.3, "B": 0.1},\n'
+            '      "material": "Wood",\n'
+            '      "anchored": true,\n'
+            '      "transparency": 0,\n'
+            '      "can_collide": true\n'
+            '    }\n'
+            '  ]\n'
+            '}'
+        )
 
         response = model.generate_content(prompt_estricto)
         texto = response.text.strip()
@@ -87,7 +84,6 @@ Estructura obligatoria exacta:
     except Exception as e:
         print("--- ERROR DIRECTO EN EL SERVIDOR ---")
         traceback.print_exc()
-        # Devolvemos el error real con código 500 para enterarnos exactamente de qué pasa si falla
         return jsonify({
             "reasoning": "Error interno: " + str(e),
             "objetos": []
