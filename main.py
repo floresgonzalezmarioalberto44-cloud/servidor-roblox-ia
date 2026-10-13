@@ -36,7 +36,7 @@ def home():
 
 @app.route('/construir', methods=['POST'])
 def construir():
-    # Definimos un JSON de respaldo por defecto por si algo falla a nivel general
+    # Usamos False con mayúscula en Python
     fallback_json = {
         "reasoning": "Pieza de respaldo por defecto.",
         "action": "create",
@@ -45,7 +45,7 @@ def construir():
         "position": {"X": 0, "Y": 0, "Z": 0},
         "color": {"R": 1, "G": 0, "B": 0},
         "material": "SmoothPlastic",
-        "has_light": false,
+        "has_light": False,
         "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
     }
 
@@ -62,7 +62,6 @@ def construir():
         except Exception:
             texto = ""
 
-        # Intentar extraer el JSON delimitado por llaves
         inicio = texto.find('{')
         fin = texto.rfind('}')
         
