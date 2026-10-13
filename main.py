@@ -13,29 +13,24 @@ if API_KEY:
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un arquitecto e ingeniero experto de Roblox Studio con lógica avanzada. 
-El usuario pedirá una construcción (como un auto con scripts, un árbol, una casa, etc.). Debes diseñar una lista detallada de múltiples piezas ("objetos") para que la estructura sea completa y funcional.
+Eres un arquitecto e ingeniero experto de Roblox Studio. Diseña una construcción detallada con múltiples piezas ("objetos") basada en la petición del usuario.
+Si piden un auto, incluye un VehicleSeat y varias piezas. Si piden un árbol, incluye tronco y hojas.
 
-Reglas clave:
-- Si piden un vehículo/auto, incluye obligatoriamente un "VehicleSeat" en el centro para que el jugador pueda conducirlo, y cilindros para las ruedas con "anchored": false.
-- Para estructuras estáticas (casas, árboles), usa bloques, cilindros o esferas con "anchored": true.
-- Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown ```json).
+Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown, sin ```json y sin texto adicional.
 
 Estructura obligatoria exacta:
 {
-  "reasoning": "Explicación de la ingeniería aplicada",
+  "reasoning": "Explicación del diseño",
   "objetos": [
     {
-      "shape": "VehicleSeat",
-      "size": {"X": 4, "Y": 1, "Z": 6},
+      "shape": "Block",
+      "size": {"X": 4, "Y": 2, "Z": 6},
       "offset": {"X": 0, "Y": 0, "Z": 0},
-      "color": {"R": 0.8, "G": 0.1, "B": 0.1},
+      "color": {"R": 0.2, "G": 0.2, "B": 0.2},
       "material": "Metal",
-      "anchored": false,
+      "anchored": true,
       "transparency": 0,
       "can_collide": true,
-      "has_light": false,
-      "has_particles": false,
       "has_sound": false,
       "sound_id": "rbxassetid://0"
     }
@@ -51,11 +46,17 @@ def home():
 def construir():
     try:
         data = request.get_json()
-        prompt_usuario = data.get('prompt', 'crear bloque') if data else 'crear bloque'
+        prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
 
-        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición del usuario: {prompt_usuario}")
+        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
+        
+        if not response or not hasattr(response, 'text'):
+            raise ValueError("La respuesta de la IA está vacía.")
+            
         texto = response.text.strip()
+        print("TEXTO BRUTO DE LA IA:", texto) # Esto saldrá en los logs de Render para depurar
 
+        # Limpiar markdown por si acaso
         if texto.startswith("```"):
             texto = texto.split("```")[1]
             if texto.startswith("json"):
@@ -70,25 +71,37 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No JSON found")
+            raise ValueError("No se encontraron llaves JSON válidas en la respuesta.")
 
     except Exception as e:
-        print("ERROR EN RENDER:")
+        print("--- ERROR CRÍTICO CAPTURADO EN RENDER ---")
         traceback.print_exc()
+        
+        # Respaldo ampliado de múltiples piezas (ej. un auto básico con asiento para que notes que falló pero construya más de 1 pieza)
         return jsonify({
-            "reasoning": "Respaldo inteligente de auto.",
+            "reasoning": "Respaldo activo debido a una excepción detectada.",
             "objetos": [
                 {
                   "shape": "VehicleSeat",
                   "size": {"X": 4, "Y": 1, "Z": 6},
                   "offset": {"X": 0, "Y": 0, "Z": 0},
-                  "color": {"R": 0.1, "G": 0.2, "B": 0.8},
+                  "color": {"R": 1, "G": 0, "B": 0},
                   "material": "Metal",
                   "anchored": False,
                   "transparency": 0,
                   "can_collide": True,
-                  "has_light": False,
-                  "has_particles": False,
+                  "has_sound": False,
+                  "sound_id": "rbxassetid://0"
+                },
+                {
+                  "shape": "Block",
+                  "size": {"X": 6, "Y": 1, "Z": 8},
+                  "offset": {"X": 0, "Y": -1, "Z": 0},
+                  "color": {"R": 0, "G": 0, "B": 1},
+                  "material": "Metal",
+                  "anchored": False,
+                  "transparency": 0,
+                  "can_collide": True,
                   "has_sound": False,
                   "sound_id": "rbxassetid://0"
                 }
