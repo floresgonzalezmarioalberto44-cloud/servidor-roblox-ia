@@ -10,56 +10,52 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Configuramos el modelo de forma limpia
 model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+PROMPT_SISTEMA = """
+Eres un arquitecto e ingeniero experto de Roblox Studio con lógica avanzada. 
+El usuario pedirá una construcción (como un auto con scripts, un árbol, una casa, etc.). Debes diseñar una lista detallada de múltiples piezas ("objetos") para que la estructura sea completa y funcional.
+
+Reglas clave:
+- Si piden un vehículo/auto, incluye obligatoriamente un "VehicleSeat" en el centro para que el jugador pueda conducirlo, y cilindros para las ruedas con "anchored": false.
+- Para estructuras estáticas (casas, árboles), usa bloques, cilindros o esferas con "anchored": true.
+- Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown ```json).
+
+Estructura obligatoria exacta:
+{
+  "reasoning": "Explicación de la ingeniería aplicada",
+  "objetos": [
+    {
+      "shape": "VehicleSeat",
+      "size": {"X": 4, "Y": 1, "Z": 6},
+      "offset": {"X": 0, "Y": 0, "Z": 0},
+      "color": {"R": 0.8, "G": 0.1, "B": 0.1},
+      "material": "Metal",
+      "anchored": false,
+      "transparency": 0,
+      "can_collide": true,
+      "has_light": false,
+      "has_particles": false,
+      "has_sound": false,
+      "sound_id": "rbxassetid://0"
+    }
+  ]
+}
+"""
 
 @app.route('/')
 def home():
-    return "Servidor activo y listo."
+    return "Servidor activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
     try:
         data = request.get_json()
-        prompt_usuario = data.get('prompt', 'crear un objeto') if data else 'crear un objeto'
+        prompt_usuario = data.get('prompt', 'crear bloque') if data else 'crear bloque'
 
-        # Prompt ultra directo y estricto
-        prompt_completo = f"""
-        Eres un generador de JSON estricto para Roblox Studio.
-        El usuario pide: "{prompt_usuario}"
-        
-        Devuelve ÚNICAMENTE un objeto JSON válido (sin explicaciones, sin markdown como ```json). 
-        Debe contener una lista llamada "objetos" con las piezas necesarias (máximo 1000).
-        Cada objeto debe tener: shape ("Block", "Ball", "Cylinder", "Wedge"), size ({"X", "Y", "Z"}), offset ({"X", "Y", "Z"}), color ({"R", "G", "B"}), material, anchored (true/false), transparency, can_collide, has_light, has_particles, has_sound, sound_id, has_script, script_code.
-
-        Ejemplo de formato:
-        {{
-          "reasoning": "Explicación breve",
-          "objetos": [
-            {{
-              "shape": "Block",
-              "size": {{"X": 4, "Y": 2, "Z": 6}},
-              "offset": {{"X": 0, "Y": 0, "Z": 0}},
-              "color": {{"R": 1, "G": 0, "B": 0}},
-              "material": "Metal",
-              "anchored": false,
-              "transparency": 0,
-              "can_collide": true,
-              "has_light": false,
-              "has_particles": false,
-              "has_sound": false,
-              "sound_id": "rbxassetid://0",
-              "has_script": false,
-              "script_code": ""
-            }}
-          ]
-        }}
-        """
-
-        response = model.generate_content(prompt_completo)
+        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición del usuario: {prompt_usuario}")
         texto = response.text.strip()
 
-        # Limpiar bloques de código markdown si los hubiera
         if texto.startswith("```"):
             texto = texto.split("```")[1]
             if texto.startswith("json"):
@@ -74,21 +70,19 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontró un JSON válido en la respuesta.")
+            raise ValueError("No JSON found")
 
     except Exception as e:
-        print("EXCEPCIÓN EN RENDER:")
+        print("ERROR EN RENDER:")
         traceback.print_exc()
-        
-        # Respaldo dinámico si ocurre un error
         return jsonify({
-            "reasoning": "Respaldo por excepción interna controlada.",
+            "reasoning": "Respaldo inteligente de auto.",
             "objetos": [
                 {
-                  "shape": "Block",
-                  "size": {"X": 4, "Y": 2, "Z": 6},
+                  "shape": "VehicleSeat",
+                  "size": {"X": 4, "Y": 1, "Z": 6},
                   "offset": {"X": 0, "Y": 0, "Z": 0},
-                  "color": {"R": 0, "G": 0.5, "B": 1},
+                  "color": {"R": 0.1, "G": 0.2, "B": 0.8},
                   "material": "Metal",
                   "anchored": False,
                   "transparency": 0,
@@ -96,9 +90,7 @@ def construir():
                   "has_light": False,
                   "has_particles": False,
                   "has_sound": False,
-                  "sound_id": "rbxassetid://0",
-                  "has_script": True,
-                  "script_code": "while true do script.Parent.CFrame = script.Parent.CFrame * CFrame.Angles(0, math.rad(2), 0) task.wait(0.03) end"
+                  "sound_id": "rbxassetid://0"
                 }
             ]
         }), 200
