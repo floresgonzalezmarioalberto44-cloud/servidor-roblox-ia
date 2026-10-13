@@ -36,17 +36,29 @@ def home():
 
 @app.route('/construir', methods=['POST'])
 def construir():
+    # Definimos un JSON de respaldo por defecto por si algo falla a nivel general
+    fallback_json = {
+        "reasoning": "Pieza de respaldo por defecto.",
+        "action": "create",
+        "shape": "Block",
+        "size": {"X": 4, "Y": 2, "Z": 4},
+        "position": {"X": 0, "Y": 0, "Z": 0},
+        "color": {"R": 1, "G": 0, "B": 0},
+        "material": "SmoothPlastic",
+        "has_light": false,
+        "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
+    }
+
     try:
         data = request.get_json()
         if not data or 'prompt' not in data:
-            return jsonify({"error": "No prompt"}), 400
+            return jsonify(fallback_json), 200
 
         prompt_usuario = data['prompt']
         
-        # Envolvemos la llamada a la IA en su propio bloque seguro
         try:
             response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
-            texto = response.text.strip()
+            texto = response.text.strip() if response and hasattr(response, 'text') else ""
         except Exception:
             texto = ""
 
@@ -59,24 +71,11 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontró un JSON válido en la respuesta de la IA.")
+            return jsonify(fallback_json), 200
 
     except Exception as e:
         print("EXCEPCIÓN INTERNA CAPTURADA:")
         traceback.print_exc()
-        
-        # Devolvemos un JSON de respaldo impecable para que Roblox reciba código 200 y nunca falle
-        fallback_json = {
-            "reasoning": "Respaldo automático de emergencia por orden compleja.",
-            "action": "create",
-            "shape": "Block",
-            "size": {"X": 4, "Y": 2, "Z": 4},
-            "position": {"X": 0, "Y": 0, "Z": 0},
-            "color": {"R": 1, "G": 0, "B": 0},
-            "material": "SmoothPlastic",
-            "has_light": false,
-            "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
-        }
         return jsonify(fallback_json), 200
 
 if __name__ == '__main__':
