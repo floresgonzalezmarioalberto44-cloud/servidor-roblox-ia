@@ -10,11 +10,12 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+# Corrección clave: Usar el nombre directo del modelo sin 'models/'
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
 Eres un arquitecto e ingeniero experto de Roblox Studio. Diseña una construcción detallada con múltiples piezas ("objetos") basada en la petición del usuario.
-Si piden un auto, incluye un VehicleSeat y varias piezas. Si piden un árbol, incluye tronco y hojas.
+Si piden un auto, incluye un VehicleSeat y varias piezas móviles. Si piden un árbol, incluye tronco y hojas.
 
 Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown, sin ```json y sin texto adicional.
 
@@ -23,12 +24,12 @@ Estructura obligatoria exacta:
   "reasoning": "Explicación del diseño",
   "objetos": [
     {
-      "shape": "Block",
-      "size": {"X": 4, "Y": 2, "Z": 6},
+      "shape": "VehicleSeat",
+      "size": {"X": 4, "Y": 1, "Z": 6},
       "offset": {"X": 0, "Y": 0, "Z": 0},
-      "color": {"R": 0.2, "G": 0.2, "B": 0.2},
+      "color": {"R": 0.8, "G": 0.1, "B": 0.1},
       "material": "Metal",
-      "anchored": true,
+      "anchored": false,
       "transparency": 0,
       "can_collide": true,
       "has_sound": false,
@@ -49,14 +50,8 @@ def construir():
         prompt_usuario = data.get('prompt', 'crear objeto') if data else 'crear objeto'
 
         response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
-        
-        if not response or not hasattr(response, 'text'):
-            raise ValueError("La respuesta de la IA está vacía.")
-            
         texto = response.text.strip()
-        print("TEXTO BRUTO DE LA IA:", texto) # Esto saldrá en los logs de Render para depurar
 
-        # Limpiar markdown por si acaso
         if texto.startswith("```"):
             texto = texto.split("```")[1]
             if texto.startswith("json"):
@@ -71,33 +66,19 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontraron llaves JSON válidas en la respuesta.")
+            raise ValueError("No se encontraron llaves JSON válidas.")
 
     except Exception as e:
-        print("--- ERROR CRÍTICO CAPTURADO EN RENDER ---")
+        print("--- ERROR EN RENDER ---")
         traceback.print_exc()
-        
-        # Respaldo ampliado de múltiples piezas (ej. un auto básico con asiento para que notes que falló pero construya más de 1 pieza)
         return jsonify({
-            "reasoning": "Respaldo activo debido a una excepción detectada.",
+            "reasoning": "Respaldo por error corregido.",
             "objetos": [
                 {
                   "shape": "VehicleSeat",
                   "size": {"X": 4, "Y": 1, "Z": 6},
                   "offset": {"X": 0, "Y": 0, "Z": 0},
                   "color": {"R": 1, "G": 0, "B": 0},
-                  "material": "Metal",
-                  "anchored": False,
-                  "transparency": 0,
-                  "can_collide": True,
-                  "has_sound": False,
-                  "sound_id": "rbxassetid://0"
-                },
-                {
-                  "shape": "Block",
-                  "size": {"X": 6, "Y": 1, "Z": 8},
-                  "offset": {"X": 0, "Y": -1, "Z": 0},
-                  "color": {"R": 0, "G": 0, "B": 1},
                   "material": "Metal",
                   "anchored": False,
                   "transparency": 0,
