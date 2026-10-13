@@ -11,7 +11,7 @@ client = genai.Client(api_key=API_KEY) if API_KEY else genai.Client()
 
 @app.route('/')
 def home():
-    return "Servidor activo."
+    return "Servidor multi-modelo activo."
 
 @app.route('/construir', methods=['POST'])
 def construir():
@@ -45,11 +45,35 @@ def construir():
             "}"
         )
 
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt_estricto
-        )
-        
+        # Lista de modelos alternativos para probar en cascada y evitar cualquier error 404 o de disponibilidad
+        modelos_a_probar = [
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-1.5-flash',
+            'gemini-2.5-flash-lite',
+            'gemini-3.5-flash'
+        ]
+
+        response = None
+        ultimo_error = None
+
+        for modelo_nombre in modelos_a_probar:
+            try:
+                print(f"Intentando conectar con el modelo: {modelo_nombre}")
+                response = client.models.generate_content(
+                    model=modelo_nombre,
+                    contents=prompt_estricto
+                )
+                if response and response.text:
+                    break
+            except Exception as err:
+                ultimo_error = err
+                print(f"Falló el modelo {modelo_nombre}, probando siguiente...")
+                continue
+
+        if not response or not response.text:
+            raise ValueError(f"Ningún modelo respondió correctamente. Último error: {str(ultimo_error)}")
+
         texto = response.text.strip()
         print("TEXTO CRUDO DE GEMINI:", texto)
 
@@ -74,7 +98,7 @@ def construir():
             raise ValueError("La respuesta de la IA no contiene un JSON válido.")
 
     except Exception as e:
-        print("--- ERROR EN EL SERVIDOR ---")
+        print("--- ERROR CRÍTICO EN EL SERVIDOR ---")
         traceback.print_exc()
         return jsonify({
             "reasoning": "Error: " + str(e),
