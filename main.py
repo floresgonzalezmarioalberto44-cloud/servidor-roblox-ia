@@ -14,16 +14,16 @@ model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
 Eres un motor JSON estricto para un NPC de Roblox. 
-Devuelve ÚNICAMENTE un objeto JSON válido. NO uses bloques de código markdown, NO uses comillas invertidas (```), NO escribas explicaciones fuera del JSON.
+Devuelve ÚNICAMENTE un objeto JSON válido con la estructura exacta indicada abajo. No agregues texto adicional, explicaciones ni bloques markdown.
 
 Estructura exacta obligatoria:
 {
-  "reasoning": "Explicación breve",
+  "reasoning": "Breve explicación de la forma",
   "action": "create",
   "shape": "Block",
-  "size": {"X": 4, "Y": 2, "Z": 6},
+  "size": {"X": 6, "Y": 2, "Z": 3},
   "position": {"X": 0, "Y": 0, "Z": 0},
-  "color": {"R": 1, "G": 0, "B": 0},
+  "color": {"R": 0, "G": 0.4, "B": 1},
   "material": "SmoothPlastic",
   "has_light": false,
   "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
@@ -42,30 +42,37 @@ def construir():
             return jsonify({"error": "No prompt"}), 400
 
         prompt_usuario = data['prompt']
-        response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
         
-        texto = response.text.strip()
-        
-        # Limpieza ultra robusta para extraer solo el contenido entre llaves {}
+        # Envolvemos la llamada a la IA en su propio bloque seguro
+        try:
+            response = model.generate_content(f"{PROMPT_SISTEMA}\n\nPetición: {prompt_usuario}")
+            texto = response.text.strip()
+        except Exception:
+            texto = ""
+
+        # Intentar extraer el JSON delimitado por llaves
         inicio = texto.find('{')
         fin = texto.rfind('}')
+        
         if inicio != -1 and fin != -1 and fin > inicio:
-            texto = texto[inicio:fin+1]
-
-        json_respuesta = json.loads(texto)
-        return jsonify(json_respuesta), 200
+            json_str = texto[inicio:fin+1]
+            json_respuesta = json.loads(json_str)
+            return jsonify(json_respuesta), 200
+        else:
+            raise ValueError("No se encontró un JSON válido en la respuesta de la IA.")
 
     except Exception as e:
-        print("ERROR INTERNO DETALLADO:")
+        print("EXCEPCIÓN INTERNA CAPTURADA:")
         traceback.print_exc()
-        # JSON de respaldo seguro para que Roblox nunca reciba un error 500
+        
+        # Devolvemos un JSON de respaldo impecable para que Roblox reciba código 200 y nunca falle
         fallback_json = {
-            "reasoning": "Respaldo automático por fallo de formato en IA.",
+            "reasoning": "Respaldo automático de emergencia por orden compleja.",
             "action": "create",
             "shape": "Block",
-            "size": {"X": 4, "Y": 2, "Z": 6},
+            "size": {"X": 4, "Y": 2, "Z": 4},
             "position": {"X": 0, "Y": 0, "Z": 0},
-            "color": {"R": 0, "G": 0.5, "B": 1},
+            "color": {"R": 1, "G": 0, "B": 0},
             "material": "SmoothPlastic",
             "has_light": false,
             "light_details": {"type": "PointLight", "brightness": 2, "color": {"R": 1, "G": 1, "B": 1}}
