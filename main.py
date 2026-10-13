@@ -52,27 +52,26 @@ def construir():
             return jsonify({"error": "No se recibió ninguna orden"}), 400
 
         prompt_usuario = data['prompt']
-        
-        # Le pedimos a Gemini que razone sobre la orden
         prompt_completo = f"{PROMPT_SISTEMA}\n\nOrden a analizar: '{prompt_usuario}'"
-        response = model.generate_content(prompt_completo)
         
-        # Limpieza de markdown para recibir JSON puro
+        response = model.generate_content(prompt_completo)
         texto = response.text.strip()
-        if texto.startswith("```json"):
-            texto = texto[7:]
-        if texto.startswith("```"):
-            texto = texto[3:]
-        if texto.endswith("```"):
-            texto = texto[:-3]
-        texto = texto.strip()
+        
+        if "```" in texto:
+            partes = texto.split("```")
+            for p in partes:
+                p_limpio = p.strip()
+                if p_limpio.startswith("json"):
+                    p_limpio = p_limpio[4:].strip()
+                if p_limpio.startswith("{") and p_limpio.endswith("}"):
+                    texto = p_limpio
+                    break
 
-        # Validar el JSON procesado por la IA
         json_respuesta = json.loads(texto)
         return jsonify(json_respuesta), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error_interno": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
