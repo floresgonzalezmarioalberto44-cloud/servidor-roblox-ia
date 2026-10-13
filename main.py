@@ -10,18 +10,15 @@ API_KEY = os.environ.get("GOOGLE_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-# Corrección clave: Usar el nombre directo del modelo sin 'models/'
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 PROMPT_SISTEMA = """
-Eres un arquitecto e ingeniero experto de Roblox Studio. Diseña una construcción detallada con múltiples piezas ("objetos") basada en la petición del usuario.
-Si piden un auto, incluye un VehicleSeat y varias piezas móviles. Si piden un árbol, incluye tronco y hojas.
-
-Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques markdown, sin ```json y sin texto adicional.
+Eres un motor de arquitectura para Roblox Studio. Responde ÚNICAMENTE con un objeto JSON válido (sin markdown ```json).
+Diseña una construcción detallada con múltiples piezas ("objetos"). Si piden un auto, incluye un "VehicleSeat" en el centro, bloques para la carrocería y cilindros para las ruedas.
 
 Estructura obligatoria exacta:
 {
-  "reasoning": "Explicación del diseño",
+  "reasoning": "Diseño de múltiples piezas",
   "objetos": [
     {
       "shape": "VehicleSeat",
@@ -31,9 +28,17 @@ Estructura obligatoria exacta:
       "material": "Metal",
       "anchored": false,
       "transparency": 0,
-      "can_collide": true,
-      "has_sound": false,
-      "sound_id": "rbxassetid://0"
+      "can_collide": true
+    },
+    {
+      "shape": "Block",
+      "size": {"X": 6, "Y": 1, "Z": 8},
+      "offset": {"X": 0, "Y": -1, "Z": 0},
+      "color": {"R": 0.1, "G": 0.1, "B": 0.8},
+      "material": "Metal",
+      "anchored": false,
+      "transparency": 0,
+      "can_collide": true
     }
   ]
 }
@@ -66,13 +71,14 @@ def construir():
             json_respuesta = json.loads(json_str)
             return jsonify(json_respuesta), 200
         else:
-            raise ValueError("No se encontraron llaves JSON válidas.")
+            raise ValueError("Formato JSON no encontrado.")
 
     except Exception as e:
         print("--- ERROR EN RENDER ---")
         traceback.print_exc()
+        # Respaldo con varias piezas para notar que la estructura múltiple funciona
         return jsonify({
-            "reasoning": "Respaldo por error corregido.",
+            "reasoning": "Respaldo múltiple de emergencia.",
             "objetos": [
                 {
                   "shape": "VehicleSeat",
@@ -82,9 +88,17 @@ def construir():
                   "material": "Metal",
                   "anchored": False,
                   "transparency": 0,
-                  "can_collide": True,
-                  "has_sound": False,
-                  "sound_id": "rbxassetid://0"
+                  "can_collide": True
+                },
+                {
+                  "shape": "Block",
+                  "size": {"X": 6, "Y": 1, "Z": 8},
+                  "offset": {"X": 0, "Y": -1, "Z": 0},
+                  "color": {"R": 0, "G": 0, "B": 1},
+                  "material": "Metal",
+                  "anchored": False,
+                  "transparency": 0,
+                  "can_collide": True
                 }
             ]
         }), 200
